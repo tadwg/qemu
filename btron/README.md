@@ -8,10 +8,17 @@ GitHub Actions (`.github/workflows/btron-windows.yml`) で、本家の QEMU の�
 - ビルド対象: `qemu-system-i386` のみ (Windows x86_64 用。Linux 上の MinGW でクロスビルド)
 - 表示: GTK と SDL。省いた機能: 説明書、ツール類、ゲストエージェント、VNC、SPICE、USB の転送、curl、暗号化ライブラリ
 
+## ダウンロード
+
+- 最新ビルド: [qemu-i386-win64.zip](https://github.com/tadwg/qemu/releases/download/btron-latest/qemu-i386-win64.zip)
+- リリースのページ: https://github.com/tadwg/qemu/releases/tag/btron-latest
+
+`btron` ブランチを更新するたびにビルドし、上のリリースの zip を差し替えます。
+どのビルドかは、zip 内の `QEMU-SOURCE.txt` に記録しています。
+
 ## 使い方
 
-1. GitHub の Actions の実行結果から `qemu-i386-win64-v11.1.3` (zip) をダウンロードして展開する
-2. 展開した `qemu` フォルダの `qemu-system-i386.exe` を実行する (必要な DLL は同じフォルダにある)
+zip を展開し、`qemu` フォルダの `qemu-system-i386.exe` を実行します (必要な DLL は同じフォルダにあります)。
 
 ```
 qemu-system-i386.exe -m 256 -drive file=disk.img,format=raw,if=ide -nic user,model=pcnet -rtc base=localtime -display gtk
@@ -21,4 +28,4 @@ qemu-system-i386.exe -m 256 -drive file=disk.img,format=raw,if=ide -nic user,mod
 
 QEMU は GNU General Public License version 2 です (`COPYING`)。このブランチの変更とビルド結果も同じ条件です。
 同梱の DLL (GTK、GLib、SDL2 など) は、それぞれのライセンス (主に LGPL) に従います。
-ビルドに使ったソースは、本家の上記の版と `btron/patches` です (zip 内の `QEMU-SOURCE.txt` に版を記録)。
+ビルドに使ったソースは、本家の上記の版と `btron/patches` です。
