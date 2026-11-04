@@ -1,0 +1,85 @@
+ui/gtk: add grab-on-focus display option
+
+Grab the keyboard (only) while the window has the keyboard focus, and
+release it when the focus is lost.  The pointer is not grabbed, so with
+an absolute pointing device the mouse still moves freely in and out of
+the window.  On Windows hosts the keys then go through the low-level
+keyboard hook, so the host input method (IME) does not take them, the
+same as while the input is grabbed with a relative pointing device.
+
+Usage: -display gtk,grab-on-focus=on
+
+---
+--- a/include/ui/gtk.h
++++ b/include/ui/gtk.h
+@@ -134,6 +134,7 @@
+     int grab_x_root;
+     int grab_y_root;
+     VirtualConsole *kbd_owner;
++    bool grab_on_focus;
+     VirtualConsole *ptr_owner;
+ 
+     gboolean full_screen;
+--- a/qapi/ui.json
++++ b/qapi/ui.json
+@@ -1324,6 +1324,13 @@
+ #
+ # @grab-on-hover: Grab keyboard input on mouse hover.
+ #
++# @grab-on-focus: Grab keyboard input while the window has the
++#     keyboard focus, without grabbing the pointer.  The grab is
++#     released when the window loses the focus.  On Windows hosts the
++#     keys then go through the low-level keyboard hook, so the host
++#     input method (IME) does not take them.  Defaults to "off".
++#     (Since 11.2)
++#
+ # @zoom-to-fit: Zoom guest display to fit into the host window.  When
+ #     turned off the host window will be resized instead.  In case the
+ #     display device can notify the guest on window resizes
+@@ -1349,6 +1356,7 @@
+ { 'struct'  : 'DisplayGTK',
+   'data'    : { '*clipboard'         : 'bool',
+                 '*grab-on-hover'     : 'bool',
++                '*grab-on-focus'     : 'bool',
+                 '*zoom-to-fit'       : 'bool',
+                 '*show-tabs'         : 'bool',
+                 '*show-menubar'      : 'bool',
+--- a/ui/gtk.c
++++ b/ui/gtk.c
+@@ -1875,6 +1875,17 @@
+     VirtualConsole *vc = opaque;
+ 
+     win32_kbd_set_window(gd_win32_get_hwnd(vc));
++    if (vc->s->grab_on_focus && vc->type == GD_VC_GFX && !vc->s->kbd_owner) {
++        /*
++         * Keyboard only, and no GDK seat grab: the window keeps the focus
++         * by itself, the pointer stays free, and on Windows the keys go
++         * through the low-level keyboard hook (not the host IME).
++         */
++        win32_kbd_set_grab(true);
++        vc->s->kbd_owner = vc;
++        gd_update_caption(vc->s);
++        trace_gd_grab(vc->label, "kbd", "grab-on-focus");
++    }
+     return TRUE;
+ }
+ 
+@@ -1886,6 +1897,9 @@
+ 
+     win32_kbd_set_window(NULL);
+     gtk_release_modifiers(s);
++    if (s->grab_on_focus && s->kbd_owner == vc && s->ptr_owner != vc) {
++        gd_ungrab_keyboard(s);
++    }
+     return TRUE;
+ }
+ 
+@@ -2807,6 +2821,8 @@
+         opts->u.gtk.grab_on_hover) {
+         gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_on_hover_item));
+     }
++    s->grab_on_focus = opts->u.gtk.has_grab_on_focus &&
++                       opts->u.gtk.grab_on_focus;
+     if (opts->u.gtk.has_show_tabs &&
+         opts->u.gtk.show_tabs) {
+         gtk_menu_item_activate(GTK_MENU_ITEM(s->show_tabs_item));
