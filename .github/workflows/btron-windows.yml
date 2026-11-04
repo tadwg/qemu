@@ -1,6 +1,7 @@
 # Windows (x86_64) 向け qemu-system-i386 のビルド.
 # Linux (Fedora コンテナ) の MinGW でクロスビルドし、依存 DLL と GTK の実行時ファイルをまとめた zip を
-# 成果物 (artifact) にする. ソースは本家の QEMU_REF を取得し、btron/patches/*.patch があれば当てる.
+# 成果物 (artifact) にし、リリース btron-latest の添付ファイルを差し替える.
+# ソースは本家の QEMU_REF を取得し、btron/patches/*.patch があれば当てる.
 # ccache の結果を actions/cache で引き継ぐので、2 回目以降は変更したファイルだけがコンパイルされる.
 name: btron-windows
 
@@ -15,10 +16,14 @@ on:
 env:
   QEMU_REF: v11.1.3
   QEMU_URL: https://gitlab.com/qemu-project/qemu.git
+  RELEASE_TAG: btron-latest
 
 concurrency:
   group: btron-windows-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -41,7 +46,7 @@ jobs:
             mingw-w64-tools mingw64-gcc mingw64-gcc-c++ mingw64-pkg-config \
             mingw64-glib2 mingw64-pixman mingw64-gtk3 mingw64-libepoxy mingw64-SDL2 \
             mingw64-gettext mingw64-libpng mingw64-libjpeg-turbo mingw64-bzip2 mingw64-zstd
-          dnf -y -q install --skip-unavailable mingw64-adwaita-icon-theme mingw64-hicolor-icon-theme || true
+          dnf -y -q install --skip-unavailable mingw64-hicolor-icon-theme || true
           mkdir -p /usr/libexec/ccache-wrappers
           for c in cc gcc c++ g++; do ln -sf /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-w64-mingw32-$c; done
 
@@ -89,8 +94,9 @@ jobs:
           cd qemu/build
           make install DESTDIR=$PWD/dist >/dev/null
           D=$PWD/dist/qemu
+          rm -rf $D/include
           python3 $GITHUB_WORKSPACE/btron-src/btron/collect-dlls.py x86_64-w64-mingw32-objdump $SYS/bin $D $D/*.exe
-          # GTK の実行時ファイル (画像ローダ, 設定スキーマ, アイコン)
+          # GTK の実行時ファイル (画像ローダ, 設定スキーマ, 基本アイコン)
           if [ -d $SYS/lib/gdk-pixbuf-2.0 ]; then
             mkdir -p $D/lib && cp -r $SYS/lib/gdk-pixbuf-2.0 $D/lib/
             python3 $GITHUB_WORKSPACE/btron-src/btron/collect-dlls.py x86_64-w64-mingw32-objdump $SYS/bin $D $(find $D/lib -name '*.dll')
@@ -98,12 +104,11 @@ jobs:
           mkdir -p $D/share/glib-2.0/schemas
           cp $SYS/share/glib-2.0/schemas/*.xml $D/share/glib-2.0/schemas/ 2>/dev/null || true
           glib-compile-schemas $D/share/glib-2.0/schemas || true
-          for t in hicolor Adwaita; do
-            [ -d $SYS/share/icons/$t ] && mkdir -p $D/share/icons && cp -r $SYS/share/icons/$t $D/share/icons/
-          done
-          cp $GITHUB_WORKSPACE/btron-src/btron/README.md $D/README-btron.md 2>/dev/null || true
+          if [ -d $SYS/share/icons/hicolor ]; then mkdir -p $D/share/icons && cp -r $SYS/share/icons/hicolor $D/share/icons/; fi
+          cp $GITHUB_WORKSPACE/btron-src/btron/README.md $D/README-btron.md
           (cd $GITHUB_WORKSPACE/qemu && git log -1 --format='%H %d' > $D/QEMU-SOURCE.txt)
-          ls $D | head -50
+          echo "build: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID ($GITHUB_SHA)" >> $D/QEMU-SOURCE.txt
+          du -sh $D
           cd $PWD/dist && zip -qr $GITHUB_WORKSPACE/qemu-i386-win64.zip qemu
           ls -la $GITHUB_WORKSPACE/qemu-i386-win64.zip
 
@@ -112,3 +117,18 @@ jobs:
           name: qemu-i386-win64-${{ env.QEMU_REF }}
           path: qemu-i386-win64.zip
           retention-days: 30
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: QEMU ${{ env.QEMU_REF }} for Windows (qemu-system-i386, btron)
+          body: |
+            btron ブランチの最新ビルドです (ビルドのたびに添付ファイルを差し替えます)。
+            QEMU: ${{ env.QEMU_REF }} + btron/patches
+            ビルド: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} (${{ github.sha }})
+            使い方とライセンス: ${{ github.server_url }}/${{ github.repository }}/blob/btron/btron/README.md
+          files: qemu-i386-win64.zip
+          overwrite_files: true
+          make_latest: true
