@@ -12,10 +12,31 @@ on:
       - 'btron/**'
       - '.github/workflows/btron-windows.yml'
   workflow_dispatch:
+    inputs:
+      qemu_url:
+        description: 'QEMU source repository (default: upstream)'
+        required: false
+        default: ''
+      qemu_ref:
+        description: 'Branch or tag to build (default: the QEMU_REF below)'
+        required: false
+        default: ''
+      apply_patches:
+        description: 'Apply btron/patches'
+        type: boolean
+        default: true
+      publish:
+        description: 'Replace the zip of the btron-latest release'
+        type: boolean
+        default: true
 
+# 手動実行で別のソースを指定したときの例 (本家の master に当てたブランチのビルド確認):
+#   qemu_url=https://github.com/tadwg/qemu.git qemu_ref=grab-on-focus apply_patches=false publish=false
 env:
-  QEMU_REF: v11.1.3
-  QEMU_URL: https://gitlab.com/qemu-project/qemu.git
+  QEMU_REF: ${{ inputs.qemu_ref || 'v11.1.3' }}
+  QEMU_URL: ${{ inputs.qemu_url || 'https://gitlab.com/qemu-project/qemu.git' }}
+  APPLY_PATCHES: ${{ inputs.apply_patches == false && 'no' || 'yes' }}
+  PUBLISH: ${{ inputs.publish == false && 'no' || 'yes' }}
   RELEASE_TAG: btron-latest
 
 concurrency:
@@ -55,7 +76,7 @@ jobs:
         run: |
           git clone -q --depth 1 --branch "$QEMU_REF" "$QEMU_URL" qemu
           shopt -s nullglob
-          for p in btron-src/btron/patches/*.patch; do
+          for p in $([ "$APPLY_PATCHES" = yes ] && echo btron-src/btron/patches/*.patch); do
             echo "apply $p"
             git -C qemu apply --verbose "$PWD/$p"
           done
@@ -68,6 +89,7 @@ jobs:
           key: ccache-win64-${{ env.QEMU_REF }}-${{ github.run_id }}
           restore-keys: |
             ccache-win64-${{ env.QEMU_REF }}-
+            ccache-win64-
 
       - name: Configure
         run: |
@@ -129,6 +151,7 @@ jobs:
           retention-days: 30
 
       - name: Publish release
+        if: env.PUBLISH == 'yes'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
