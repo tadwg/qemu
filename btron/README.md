@@ -164,6 +164,11 @@ Windows のホストで GTK 表示を使い、ゲストが絶対座標のポイ�
 
 ### 本家への提案について
 
+本家の master (フォークした時点) に同じ変更を 1 つのコミットとして載せたブランチ
+[`grab-on-focus`](https://github.com/tadwg/qemu/tree/grab-on-focus) もあります。起動オプションの説明
+(`qemu-options.hx`) も加えていて、Windows 向けのビルドが通ることを確認済みです (手動実行で
+`qemu_url=https://github.com/tadwg/qemu.git`、`qemu_ref=grab-on-focus`、`apply_patches=false`、`publish=false`)。
+
 このパッチは AI (Claude) の支援で作成したもので、本家には送っていません。QEMU には、AI が生成したコードを
 含む投稿を受け付けない方針 (`docs/devel/code-provenance.rst`) があるため、本家に提案する場合は、上の
 「問題」「原因」「対策」の説明をもとに、課題 (issue) として報告するか、人が書き直したパッチを送ってください。
@@ -179,6 +184,8 @@ grab it, see `gd_button_event`).
 **Change.** A new GTK display option, `-display gtk,grab-on-focus=on`, grabs the keyboard only (no GDK seat
 grab, the pointer stays free) while the window has the keyboard focus, and releases it on focus out.
 The diff against v11.1.3 is shown above and in `btron/patches/0001-ui-gtk-grab-on-focus.patch`.
+The same change as a single commit on upstream master (with `qemu-options.hx`), which builds for Windows:
+branch [`grab-on-focus`](https://github.com/tadwg/qemu/tree/grab-on-focus).
 
 **Status.** Confirmed by a user on a Windows host (Japanese IME, BTRON guest). Not tested on Linux or macOS
 hosts. The patch was written with the help of an AI assistant and has not been submitted upstream; see
