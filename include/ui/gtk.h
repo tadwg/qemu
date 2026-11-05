@@ -136,6 +136,7 @@ struct GtkDisplayState {
     int grab_x_root;
     int grab_y_root;
     VirtualConsole *kbd_owner;
+    bool grab_on_focus;
     VirtualConsole *ptr_owner;
 
     gboolean full_screen;

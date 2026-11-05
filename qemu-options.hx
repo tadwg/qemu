@@ -2256,7 +2256,8 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #endif
 #if defined(CONFIG_GTK)
     "-display gtk[,clipboard=on|off][,full-screen=on|off][,gl=on|off]\n"
-    "            [,grab-on-hover=on|off][,show-tabs=on|off][,show-cursor=on|off]\n"
+    "            [,grab-on-hover=on|off][,grab-on-focus=on|off]\n"
+    "            [,show-tabs=on|off][,show-cursor=on|off]\n"
     "            [,window-close=on|off][,show-menubar=on|off][,zoom-to-fit=on|off]\n"
 #endif
 #if defined(CONFIG_VNC)
@@ -2349,6 +2350,11 @@ SRST
         ``gl=on|off`` : Use OpenGL for displaying
 
         ``grab-on-hover=on|off`` : Grab keyboard input on mouse hover
+
+        ``grab-on-focus=on|off`` : Grab keyboard input (not the pointer) while
+                                   the window has the keyboard focus.  On
+                                   Windows hosts the keys then bypass the host
+                                   input method (IME).  Defaults to "off"
 
         ``show-tabs=on|off`` : Display the tab bar for switching between the
                                various graphical interfaces (e.g. VGA and

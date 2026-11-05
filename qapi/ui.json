@@ -1275,6 +1275,13 @@
 #
 # @grab-on-hover: Grab keyboard input on mouse hover.
 #
+# @grab-on-focus: Grab keyboard input while the window has the
+#     keyboard focus, without grabbing the pointer.  The grab is
+#     released when the window loses the focus.  On Windows hosts the
+#     keys then go through the low-level keyboard hook, so the host
+#     input method (IME) does not take them.  Defaults to "off".
+#     (Since 11.2)
+#
 # @zoom-to-fit: Zoom guest display to fit into the host window.  When
 #     turned off the host window will be resized instead.  In case the
 #     display device can notify the guest on window resizes
@@ -1300,6 +1307,7 @@
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*clipboard'         : 'bool',
                 '*grab-on-hover'     : 'bool',
+                '*grab-on-focus'     : 'bool',
                 '*zoom-to-fit'       : 'bool',
                 '*show-tabs'         : 'bool',
                 '*show-menubar'      : 'bool',

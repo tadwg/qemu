@@ -1950,6 +1950,17 @@ static gboolean gd_focus_in_event(GtkWidget *widget,
     VirtualConsole *vc = opaque;
 
     win32_kbd_set_window(gd_win32_get_hwnd(vc));
+    if (vc->s->grab_on_focus && vc->type == GD_VC_GFX && !vc->s->kbd_owner) {
+        /*
+         * Keyboard only, and no GDK seat grab: the window keeps the focus
+         * by itself, the pointer stays free, and on Windows the keys go
+         * through the low-level keyboard hook (not the host IME).
+         */
+        win32_kbd_set_grab(true);
+        vc->s->kbd_owner = vc;
+        gd_update_caption(vc->s);
+        trace_gd_grab(vc->label, "kbd", "grab-on-focus");
+    }
     return TRUE;
 }
 
@@ -1961,6 +1972,9 @@ static gboolean gd_focus_out_event(GtkWidget *widget,
 
     win32_kbd_set_window(NULL);
     gtk_release_modifiers(s);
+    if (s->grab_on_focus && s->kbd_owner == vc && s->ptr_owner != vc) {
+        gd_ungrab_keyboard(s);
+    }
     return TRUE;
 }
 
@@ -2907,6 +2921,8 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
         opts->u.gtk.grab_on_hover) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_on_hover_item));
     }
+    s->grab_on_focus = opts->u.gtk.has_grab_on_focus &&
+                       opts->u.gtk.grab_on_focus;
     if (opts->u.gtk.has_show_tabs &&
         opts->u.gtk.show_tabs) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->show_tabs_item));
