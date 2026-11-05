@@ -46,7 +46,8 @@ jobs:
             mingw-w64-tools mingw64-gcc mingw64-gcc-c++ mingw64-pkg-config \
             mingw64-glib2 mingw64-pixman mingw64-gtk3 mingw64-libepoxy mingw64-SDL2 \
             mingw64-gettext mingw64-libpng mingw64-libjpeg-turbo mingw64-bzip2 mingw64-zstd
-          dnf -y -q install --skip-unavailable mingw64-hicolor-icon-theme || true
+          # Fedora の mingw64-SDL2 は SDL3 を実行時に読み込む互換ライブラリ (sdl2-compat) なので SDL3 も入れる
+          dnf -y -q install --skip-unavailable mingw64-SDL3 mingw64-hicolor-icon-theme || true
           mkdir -p /usr/libexec/ccache-wrappers
           for c in cc gcc c++ g++; do ln -sf /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-w64-mingw32-$c; done
 
@@ -96,6 +97,14 @@ jobs:
           D=$PWD/dist/qemu
           rm -rf $D/include
           python3 $GITHUB_WORKSPACE/btron-src/btron/collect-dlls.py x86_64-w64-mingw32-objdump $SYS/bin $D $D/*.exe
+          # 実行時に LoadLibrary で読む DLL (objdump の依存関係には出ない)
+          if grep -qa 'SDL3' $D/SDL2.dll 2>/dev/null; then
+            test -f $SYS/bin/SDL3.dll || { echo "SDL2.dll needs SDL3.dll but it is not installed" >&2; exit 1; }
+          fi
+          if [ -f $SYS/bin/SDL3.dll ]; then
+            cp $SYS/bin/SDL3.dll $D/
+            python3 $GITHUB_WORKSPACE/btron-src/btron/collect-dlls.py x86_64-w64-mingw32-objdump $SYS/bin $D $D/SDL3.dll
+          fi
           # GTK の実行時ファイル (画像ローダ, 設定スキーマ, 基本アイコン)
           if [ -d $SYS/lib/gdk-pixbuf-2.0 ]; then
             mkdir -p $D/lib && cp -r $SYS/lib/gdk-pixbuf-2.0 $D/lib/
@@ -108,6 +117,7 @@ jobs:
           cp $GITHUB_WORKSPACE/btron-src/btron/README.md $D/README-btron.md
           (cd $GITHUB_WORKSPACE/qemu && git log -1 --format='%H %d' > $D/QEMU-SOURCE.txt)
           echo "build: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID ($GITHUB_SHA)" >> $D/QEMU-SOURCE.txt
+          ls $D/*.dll | xargs -n1 basename | tr '\n' ' '; echo
           du -sh $D
           cd $PWD/dist && zip -qr $GITHUB_WORKSPACE/qemu-i386-win64.zip qemu
           ls -la $GITHUB_WORKSPACE/qemu-i386-win64.zip
